@@ -4,31 +4,42 @@ React frontend for the Resources Management workflow (draft modules, provisionin
 
 ## Prerequisites
 
-- Node.js (LTS recommended)
-- Docker (for the backend)
+- Docker (full stack)
+- Node.js (optional, for local frontend development)
 
 ## Running the application
 
-### Backend
+### Full stack (Docker)
 
 From the repository root:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-API documentation (Swagger): [http://localhost:5001/docs](http://localhost:5001/docs)
+This starts MongoDB, the backend API, and the Vite dev server. Open the frontend at [http://localhost:5173](http://localhost:5173).
 
-### Frontend
+The browser calls the backend at `http://localhost:5001` (mapped from the backend container). `VITE_API_BASE_URL` is set accordingly in Compose.
 
-From the repository root:
+To stop:
 
 ```bash
+docker compose down
+```
+
+### Local frontend development
+
+Start the backend with Docker, then run the frontend on the host:
+
+```bash
+docker compose up -d backend mongo
 npm install
 npm run dev
 ```
 
 Optional: copy `.env.example` to `.env` if you need a non-default API URL. The default is `http://localhost:5001`.
+
+API documentation (Swagger): [http://localhost:5001/docs](http://localhost:5001/docs)
 
 ## URLs
 
