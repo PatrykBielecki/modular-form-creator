@@ -12,8 +12,10 @@ import {
   SummaryNavLinkDisabled,
 } from '../components/resources/ResourceSummarySection'
 import { ModuleCompletionBadge } from '../components/resources/ModuleCompletionBadge'
+import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
 import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
 import {
   resourceBasicInfoPath,
@@ -29,6 +31,7 @@ import {
   isProjectDetailsComplete,
   isReadyForProvisioning,
 } from '../utils/moduleCompletion'
+import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
 
 function displayText(value: string): string {
   const trimmed = value.trim()
@@ -66,47 +69,61 @@ function formatOptions(values: string[]): string {
 }
 
 interface ResourceDetailsSummaryProps {
-  resource: Resource
+  serverResource: Resource
   resourceId: string
 }
 
 function ResourceDetailsSummary({
-  resource,
+  serverResource,
   resourceId,
 }: ResourceDetailsSummaryProps) {
+  const { getBuffer } = useCompletedResourceEditBuffer()
+  const buffer = getBuffer(resourceId)
+  const showBufferedNotice =
+    serverResource.status === 'completed' &&
+    hasBufferedChanges(serverResource, buffer)
+  const resource =
+    serverResource.status === 'completed'
+      ? getResourceEditView(serverResource, buffer)
+      : serverResource
+
   const basicInfoComplete = isBasicInfoComplete(resource.basicInfo)
   const projectDetailsComplete = isProjectDetailsComplete(resource.projectDetails)
   const projectDetailsAccessible =
-    resource.status === 'completed' ||
-    canEditProjectDetails(resource.basicInfo)
-  const provisioningBlockedReason = getProvisioningBlockedReason(resource)
+    serverResource.status === 'completed' ||
+    canEditProjectDetails(serverResource.basicInfo)
+  const provisioningBlockedReason = getProvisioningBlockedReason(serverResource)
 
   return (
     <Content>
+      {showBufferedNotice ? (
+        <BufferedChangesNotice message="Values below include temporary unsaved changes merged with persisted server data. Persisted server values may differ until you submit a full update from a module form." />
+      ) : null}
+
       <MetaCard>
         <MetaHeader>
-          <MetaTitle>{resource.name}</MetaTitle>
-          <ResourceStatusBadge status={resource.status} />
+          <MetaTitle>{serverResource.name}</MetaTitle>
+          <ResourceStatusBadge status={serverResource.status} />
         </MetaHeader>
         <MetaGrid>
-          <SummaryField label="Resource ID" value={resource.resourceId} />
-          <SummaryField label="Resource name" value={resource.name} />
-          <SummaryField label="Status" value={<ResourceStatusBadge status={resource.status} />} />
+          <SummaryField label="Resource ID" value={serverResource.resourceId} />
+          <SummaryField label="Resource name" value={serverResource.name} />
+          <SummaryField label="Status" value={<ResourceStatusBadge status={serverResource.status} />} />
           <SummaryField
             label="Created"
-            value={formatTimestamp(resource.createdAt)}
+            value={formatTimestamp(serverResource.createdAt)}
           />
           <SummaryField
             label="Last updated"
-            value={formatTimestamp(resource.updatedAt)}
+            value={formatTimestamp(serverResource.updatedAt)}
           />
         </MetaGrid>
       </MetaCard>
 
-      <StatusNotice $variant={resource.status === 'completed' ? 'completed' : isReadyForProvisioning(resource) ? 'ready' : 'pending'}>
-        {resource.status === 'completed' ? (
+      <StatusNotice $variant={serverResource.status === 'completed' ? 'completed' : isReadyForProvisioning(serverResource) ? 'ready' : 'pending'}>
+        {serverResource.status === 'completed' ? (
           <>This resource is completed. Provisioning is not available.</>
-        ) : isReadyForProvisioning(resource) ? (
+        ) : isReadyForProvisioning(serverResource) ? (
           <>
             Both modules are complete. This resource can be provisioned from the{' '}
             <InlineLink to={resourceOverviewPath(resourceId)}>resource overview</InlineLink>.
@@ -119,7 +136,7 @@ function ResourceDetailsSummary({
       <ModulesSummary>
         <SummaryField
           label="Overall module progress"
-          value={`${Number(basicInfoComplete) + Number(projectDetailsComplete)} of 2 modules complete`}
+          value={`${Number(basicInfoComplete) + Number(projectDetailsComplete)} of 2 modules complete${showBufferedNotice ? ' (includes unsaved changes)' : ''}`}
         />
         <ModuleBadges>
           <ModuleCompletionBadge complete={basicInfoComplete} />
@@ -243,7 +260,7 @@ export function ResourceDetailsPage() {
       >
         {resource ? (
           <ResourceDetailsSummary
-            resource={resource}
+            serverResource={resource}
             resourceId={resourceId}
           />
         ) : null}

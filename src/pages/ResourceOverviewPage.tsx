@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { getErrorMessage } from '../api/errors'
 import { getResource, provisionResource } from '../api/resources'
+import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
 import { ModuleOverviewCard } from '../components/resources/ModuleOverviewCard'
 import { ResourceStatusBadge } from '../components/resources/ResourceStatusBadge'
 import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { Button } from '../design-system'
 import {
   resourceBasicInfoPath,
@@ -15,6 +17,7 @@ import {
   useResourceId,
 } from '../hooks/useResourceId'
 import type { Resource } from '../types/resource'
+import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
 import {
   canEditProjectDetails,
   getCompletedModuleCount,
@@ -26,6 +29,7 @@ import {
 
 export function ResourceOverviewPage() {
   const resourceId = useResourceId()
+  const { getBuffer } = useCompletedResourceEditBuffer()
   const [resource, setResource] = useState<Resource | null>(null)
   const [fetchError, setFetchError] = useState<{
     resourceId: string
@@ -93,6 +97,15 @@ export function ResourceOverviewPage() {
     (resource.status === 'completed' ||
       canEditProjectDetails(resource.basicInfo))
 
+  const buffer = resource ? getBuffer(resourceId) : undefined
+  const viewResource =
+    resource && resource.status === 'completed'
+      ? getResourceEditView(resource, buffer)
+      : resource
+  const showBufferedNotice =
+    resource?.status === 'completed' &&
+    hasBufferedChanges(resource, buffer)
+
   return (
     <section>
       <PageHeader
@@ -112,8 +125,12 @@ export function ResourceOverviewPage() {
         loadingMessage="Loading resource…"
         errorTitle="Could not load resource"
       >
-        {resource ? (
+        {resource && viewResource ? (
           <Content>
+            {showBufferedNotice ? (
+              <BufferedChangesNotice message="Temporary unsaved changes exist for this completed resource. Module progress below reflects merged in-memory edits, not what is persisted on the server." />
+            ) : null}
+
             <SummaryCard>
               <SummaryRow>
                 <SummaryLabel>Resource ID</SummaryLabel>
@@ -132,7 +149,8 @@ export function ResourceOverviewPage() {
             <ProgressCard>
               <ProgressTitle>Overall progress</ProgressTitle>
               <ProgressText>
-                {getCompletedModuleCount(resource)} of 2 modules complete
+                {getCompletedModuleCount(viewResource)} of 2 modules complete
+                {showBufferedNotice ? ' (includes unsaved changes)' : ''}
               </ProgressText>
               {resource.status === 'completed' ? (
                 <CompletedNotice>
@@ -153,14 +171,14 @@ export function ResourceOverviewPage() {
               <ModuleOverviewCard
                 title="Basic Info"
                 description="Owner, contact details, description, and priority."
-                complete={isBasicInfoComplete(resource.basicInfo)}
+                complete={isBasicInfoComplete(viewResource.basicInfo)}
                 actionLabel="Open Basic Info"
                 actionTo={resourceBasicInfoPath(resourceId)}
               />
               <ModuleOverviewCard
                 title="Project Details"
                 description="Project name, budget, category, and team members."
-                complete={isProjectDetailsComplete(resource.projectDetails)}
+                complete={isProjectDetailsComplete(viewResource.projectDetails)}
                 actionLabel="Open Project Details"
                 actionTo={
                   projectDetailsAccessible

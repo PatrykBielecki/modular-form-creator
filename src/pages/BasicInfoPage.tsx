@@ -1,14 +1,19 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import styled from 'styled-components'
 import { getErrorMessage } from '../api/errors'
 import { updateBasicInfo } from '../api/resources'
 import { BasicInfoForm } from '../components/forms/BasicInfoForm'
+import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
+import { PersistCompletedChangesPanel } from '../components/resources/PersistCompletedChangesPanel'
 import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
 import { resourceOverviewPath, useResourceId } from '../hooks/useResourceId'
 import type { BasicInfo, Resource } from '../types/resource'
+import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
 import {
   hasValidationErrors,
   validateBasicInfo,
@@ -18,34 +23,50 @@ import {
 interface BasicInfoPageContentProps {
   resource: Resource
   resourceId: string
+  onResourceUpdated: (resource: Resource) => void
 }
 
 function BasicInfoPageContent({
   resource,
   resourceId,
+  onResourceUpdated,
 }: BasicInfoPageContentProps) {
   const navigate = useNavigate()
-  const [formValues, setFormValues] = useState<BasicInfo>(resource.basicInfo)
+  const { getBuffer, setBasicInfoBuffer } = useCompletedResourceEditBuffer()
+  const buffer = getBuffer(resourceId)
+  const editView = getResourceEditView(resource, buffer)
+  const isCompleted = resource.status === 'completed'
+
+  const [formValues, setFormValues] = useState<BasicInfo>(editView.basicInfo)
   const [fieldErrors, setFieldErrors] = useState<BasicInfoFieldErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const showBufferedNotice =
+    isCompleted && hasBufferedChanges(resource, getBuffer(resourceId))
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (resource.status !== 'draft') {
-      return
-    }
-
     setSubmitError(null)
-    const errors = validateBasicInfo(formValues)
+    setSubmitSuccess(null)
 
+    const errors = validateBasicInfo(formValues)
     if (hasValidationErrors(errors)) {
       setFieldErrors(errors)
       return
     }
 
     setFieldErrors({})
+
+    if (isCompleted) {
+      setBasicInfoBuffer(resourceId, formValues)
+      setSubmitSuccess(
+        'Temporary Basic Info changes saved in memory. Persist them with a full update when ready.',
+      )
+      return
+    }
+
     setIsSubmitting(true)
 
     updateBasicInfo(resourceId, formValues)
@@ -72,24 +93,41 @@ function BasicInfoPageContent({
     if (submitError) {
       setSubmitError(null)
     }
+    if (submitSuccess) {
+      setSubmitSuccess(null)
+    }
   }
 
   return (
-    <BasicInfoForm
-      mode={resource.status === 'completed' ? 'completed' : 'draft'}
-      value={formValues}
-      fieldErrors={fieldErrors}
-      submitError={submitError}
-      isSubmitting={isSubmitting}
-      onChange={handleChange}
-      onSubmit={handleSubmit}
-    />
+    <FormStack>
+      {showBufferedNotice ? <BufferedChangesNotice /> : null}
+      <BasicInfoForm
+        mode={isCompleted ? 'completed' : 'draft'}
+        value={formValues}
+        fieldErrors={fieldErrors}
+        submitError={submitError}
+        submitSuccess={submitSuccess}
+        isSubmitting={isSubmitting}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+      />
+      {isCompleted ? (
+        <PersistCompletedChangesPanel
+          serverResource={resource}
+          resourceId={resourceId}
+          onPersisted={onResourceUpdated}
+        />
+      ) : null}
+    </FormStack>
   )
 }
 
 export function BasicInfoPage() {
   const resourceId = useResourceId()
-  const { resource, loading, loadError, isNotFound } = useResource(resourceId)
+  const { resource, loading, loadError, isNotFound, setResource } =
+    useResource(resourceId)
+  const { getBufferRevision } = useCompletedResourceEditBuffer()
+  const bufferRevision = getBufferRevision(resourceId)
 
   return (
     <section>
@@ -112,12 +150,19 @@ export function BasicInfoPage() {
       >
         {resource ? (
           <BasicInfoPageContent
-            key={resource._id}
+            key={`${resource._id}-${bufferRevision}`}
             resource={resource}
             resourceId={resourceId}
+            onResourceUpdated={setResource}
           />
         ) : null}
       </AsyncState>
     </section>
   )
 }
+
+const FormStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+`

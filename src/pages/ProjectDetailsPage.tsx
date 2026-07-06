@@ -1,19 +1,21 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import styled from 'styled-components'
 import { getErrorMessage } from '../api/errors'
 import { updateProjectDetails } from '../api/resources'
 import { ProjectDetailsBlockedState } from '../components/forms/ProjectDetailsBlockedState'
 import { ProjectDetailsForm } from '../components/forms/ProjectDetailsForm'
+import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
+import { PersistCompletedChangesPanel } from '../components/resources/PersistCompletedChangesPanel'
 import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
-import {
-  resourceOverviewPath,
-  useResourceId,
-} from '../hooks/useResourceId'
+import { resourceOverviewPath, useResourceId } from '../hooks/useResourceId'
 import type { ProjectDetails, Resource } from '../types/resource'
 import { canEditProjectDetails } from '../utils/moduleCompletion'
+import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
 import {
   hasValidationErrors,
   validateProjectDetails,
@@ -23,36 +25,52 @@ import {
 interface ProjectDetailsPageContentProps {
   resource: Resource
   resourceId: string
+  onResourceUpdated: (resource: Resource) => void
 }
 
 function ProjectDetailsPageContent({
   resource,
   resourceId,
+  onResourceUpdated,
 }: ProjectDetailsPageContentProps) {
   const navigate = useNavigate()
+  const { getBuffer, setProjectDetailsBuffer } = useCompletedResourceEditBuffer()
+  const buffer = getBuffer(resourceId)
+  const editView = getResourceEditView(resource, buffer)
+  const isCompleted = resource.status === 'completed'
+
   const [formValues, setFormValues] = useState<ProjectDetails>(
-    resource.projectDetails,
+    editView.projectDetails,
   )
   const [fieldErrors, setFieldErrors] = useState<ProjectDetailsFieldErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const showBufferedNotice =
+    isCompleted && hasBufferedChanges(resource, getBuffer(resourceId))
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-
-    if (resource.status !== 'draft') {
-      return
-    }
-
     setSubmitError(null)
-    const errors = validateProjectDetails(formValues)
+    setSubmitSuccess(null)
 
+    const errors = validateProjectDetails(formValues)
     if (hasValidationErrors(errors)) {
       setFieldErrors(errors)
       return
     }
 
     setFieldErrors({})
+
+    if (isCompleted) {
+      setProjectDetailsBuffer(resourceId, formValues)
+      setSubmitSuccess(
+        'Temporary Project Details changes saved in memory. Persist them with a full update when ready.',
+      )
+      return
+    }
+
     setIsSubmitting(true)
 
     updateProjectDetails(resourceId, formValues)
@@ -79,24 +97,41 @@ function ProjectDetailsPageContent({
     if (submitError) {
       setSubmitError(null)
     }
+    if (submitSuccess) {
+      setSubmitSuccess(null)
+    }
   }
 
   return (
-    <ProjectDetailsForm
-      mode={resource.status === 'completed' ? 'completed' : 'draft'}
-      value={formValues}
-      fieldErrors={fieldErrors}
-      submitError={submitError}
-      isSubmitting={isSubmitting}
-      onChange={handleChange}
-      onSubmit={handleSubmit}
-    />
+    <FormStack>
+      {showBufferedNotice ? <BufferedChangesNotice /> : null}
+      <ProjectDetailsForm
+        mode={isCompleted ? 'completed' : 'draft'}
+        value={formValues}
+        fieldErrors={fieldErrors}
+        submitError={submitError}
+        submitSuccess={submitSuccess}
+        isSubmitting={isSubmitting}
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+      />
+      {isCompleted ? (
+        <PersistCompletedChangesPanel
+          serverResource={resource}
+          resourceId={resourceId}
+          onPersisted={onResourceUpdated}
+        />
+      ) : null}
+    </FormStack>
   )
 }
 
 export function ProjectDetailsPage() {
   const resourceId = useResourceId()
-  const { resource, loading, loadError, isNotFound } = useResource(resourceId)
+  const { resource, loading, loadError, isNotFound, setResource } =
+    useResource(resourceId)
+  const { getBufferRevision } = useCompletedResourceEditBuffer()
+  const bufferRevision = getBufferRevision(resourceId)
 
   const isDraftBlocked =
     resource?.status === 'draft' &&
@@ -126,9 +161,10 @@ export function ProjectDetailsPage() {
             <ProjectDetailsBlockedState resourceId={resourceId} />
           ) : (
             <ProjectDetailsPageContent
-              key={resource._id}
+              key={`${resource._id}-${bufferRevision}`}
               resource={resource}
               resourceId={resourceId}
+              onResourceUpdated={setResource}
             />
           )
         ) : null}
@@ -136,3 +172,9 @@ export function ProjectDetailsPage() {
     </section>
   )
 }
+
+const FormStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.lg};
+`

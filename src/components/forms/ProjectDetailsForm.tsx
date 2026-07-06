@@ -15,6 +15,7 @@ interface ProjectDetailsFormProps {
   value: ProjectDetails
   fieldErrors: ProjectDetailsFieldErrors
   submitError?: string | null
+  submitSuccess?: string | null
   isSubmitting?: boolean
   onChange: (value: ProjectDetails) => void
   onSubmit?: (event: FormEvent<HTMLFormElement>) => void
@@ -25,6 +26,7 @@ export function ProjectDetailsForm({
   value,
   fieldErrors,
   submitError = null,
+  submitSuccess = null,
   isSubmitting = false,
   onChange,
   onSubmit,
@@ -39,11 +41,12 @@ export function ProjectDetailsForm({
   }
 
   return (
-    <Form onSubmit={isDraft ? onSubmit : undefined}>
+    <Form onSubmit={onSubmit}>
       {mode === 'completed' ? (
         <CompletedNotice>
-          This resource is completed. Edits here are temporary until you confirm
-          and save them in a later step. Changes are not sent to the server yet.
+          Changes are stored in temporary in-memory state only. They are not
+          sent to the server until you explicitly persist them with a full
+          update below.
         </CompletedNotice>
       ) : null}
 
@@ -90,14 +93,17 @@ export function ProjectDetailsForm({
       />
 
       {submitError ? <FormError role="alert">{submitError}</FormError> : null}
+      {submitSuccess ? <FormSuccess role="status">{submitSuccess}</FormSuccess> : null}
 
-      {isDraft ? (
-        <Actions>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving…' : 'Save Project Details'}
-          </Button>
-        </Actions>
-      ) : null}
+      <Actions>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? 'Saving…'
+            : isDraft
+              ? 'Save Project Details'
+              : 'Save temporary changes'}
+        </Button>
+      </Actions>
     </Form>
   )
 }
@@ -122,6 +128,12 @@ const CompletedNotice = styled.p`
 const FormError = styled.p`
   margin: 0;
   color: ${({ theme }) => theme.colors.warning};
+  font-size: 0.95rem;
+`
+
+const FormSuccess = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.success};
   font-size: 0.95rem;
 `
 
