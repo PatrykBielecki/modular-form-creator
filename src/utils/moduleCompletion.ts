@@ -38,3 +38,34 @@ export function isReadyForProvisioning(
 export function canEditProjectDetails(basicInfo: BasicInfo): boolean {
   return isBasicInfoComplete(basicInfo)
 }
+
+export function getCompletedModuleCount(
+  resource: Pick<Resource, 'basicInfo' | 'projectDetails'>,
+): number {
+  let count = 0
+  if (isBasicInfoComplete(resource.basicInfo)) {
+    count += 1
+  }
+  if (isProjectDetailsComplete(resource.projectDetails)) {
+    count += 1
+  }
+  return count
+}
+
+export function getProvisioningBlockedReason(
+  resource: Pick<Resource, 'status' | 'basicInfo' | 'projectDetails'>,
+): string | null {
+  if (resource.status === 'completed' || isReadyForProvisioning(resource)) {
+    return null
+  }
+
+  const missingModules: string[] = []
+  if (!isBasicInfoComplete(resource.basicInfo)) {
+    missingModules.push('Basic Info')
+  }
+  if (!isProjectDetailsComplete(resource.projectDetails)) {
+    missingModules.push('Project Details')
+  }
+
+  return `Complete ${missingModules.join(' and ')} before provisioning.`
+}
