@@ -37,7 +37,7 @@ function projectDetailsEquals(
 }
 
 /** Merge server resource data with in-memory buffered module edits. */
-export function mergeResourceWithBuffer(
+function mergeResourceWithBuffer(
   resource: Resource,
   buffer?: ResourceEditBuffer,
 ): Resource {

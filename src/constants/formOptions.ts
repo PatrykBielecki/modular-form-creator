@@ -1,10 +1,8 @@
 import type { SelectOption } from '../design-system'
 
 export const PRIORITY_VALUES = ['low', 'medium', 'high'] as const
-export type Priority = (typeof PRIORITY_VALUES)[number]
 
 export const PROJECT_CATEGORY_VALUES = ['internal', 'external', 'vendor'] as const
-export type ProjectCategory = (typeof PROJECT_CATEGORY_VALUES)[number]
 
 export const TEAM_MEMBER_VALUES = [
   'FE devs',
@@ -13,7 +11,6 @@ export const TEAM_MEMBER_VALUES = [
   'Data Eng',
   'Product Owner',
 ] as const
-export type TeamMemberOption = (typeof TEAM_MEMBER_VALUES)[number]
 
 export const PRIORITY_OPTIONS: SelectOption[] = [
   { value: '', label: 'Select priority' },
