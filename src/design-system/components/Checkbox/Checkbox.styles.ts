@@ -1,11 +1,12 @@
 import styled from 'styled-components'
 
-/** Inline wrapper for checkbox and label. */
-export const Wrapper = styled.div`
+/** Clickable label wrapping the input, visual box, and text. */
+export const Wrapper = styled.label`
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  cursor: pointer;
 `
 
 /** Native checkbox visually hidden but still accessible. */
@@ -52,8 +53,8 @@ export const Box = styled.span`
   }
 `
 
-/** Label text linked to the hidden checkbox input. */
-export const Label = styled.label`
+/** Label text shown beside the checkbox box. */
+export const LabelText = styled.span`
   font-size: 0.95rem;
   color: ${({ theme }) => theme.colors.inkStrong};
 `

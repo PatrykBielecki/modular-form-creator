@@ -1,23 +1,15 @@
-import styled from 'styled-components'
+import { BrowserRouter } from 'react-router-dom'
+import { CompletedResourceEditBufferProvider } from './context/CompletedResourceEditBufferProvider'
+import { AppRoutes } from './routes/AppRoutes'
 
 function App() {
   return (
-    <AppShell>
-      <Message>Good luck!</Message>
-    </AppShell>
+    <BrowserRouter>
+      <CompletedResourceEditBufferProvider>
+        <AppRoutes />
+      </CompletedResourceEditBufferProvider>
+    </BrowserRouter>
   )
 }
-
-const AppShell = styled.div`
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const Message = styled.h1`
-  font-size: 2.5rem;
-  color: ${({ theme }) => theme.colors.inkStrong};
-`
 
 export default App
