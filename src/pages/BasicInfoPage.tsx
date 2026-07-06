@@ -7,13 +7,17 @@ import { updateBasicInfo } from '../api/resources'
 import { BasicInfoForm } from '../components/forms/BasicInfoForm'
 import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
 import { PersistCompletedChangesPanel } from '../components/resources/PersistCompletedChangesPanel'
-import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { ResourcePageAsyncState } from '../components/layout/ResourcePageAsyncState'
 import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
 import { resourceOverviewPath, useResourceId } from '../hooks/useResourceId'
 import type { BasicInfo, Resource } from '../types/resource'
 import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
+import {
+  assertResourceNameUnchanged,
+  ensureLockedResourceName,
+} from '../utils/resourceLoadErrors'
 import {
   hasValidationErrors,
   validateBasicInfo,
@@ -36,6 +40,7 @@ function BasicInfoPageContent({
   const buffer = getBuffer(resourceId)
   const editView = getResourceEditView(resource, buffer)
   const isCompleted = resource.status === 'completed'
+  const lockedResourceName = resource.basicInfo.resourceName
 
   const [formValues, setFormValues] = useState<BasicInfo>(editView.basicInfo)
   const [fieldErrors, setFieldErrors] = useState<BasicInfoFieldErrors>({})
@@ -51,7 +56,17 @@ function BasicInfoPageContent({
     setSubmitError(null)
     setSubmitSuccess(null)
 
-    const errors = validateBasicInfo(formValues)
+    const payload = ensureLockedResourceName(formValues, lockedResourceName)
+    const resourceNameError = assertResourceNameUnchanged(
+      payload.resourceName,
+      lockedResourceName,
+    )
+    const errors = validateBasicInfo(payload)
+
+    if (resourceNameError) {
+      errors.resourceName = resourceNameError
+    }
+
     if (hasValidationErrors(errors)) {
       setFieldErrors(errors)
       return
@@ -60,7 +75,7 @@ function BasicInfoPageContent({
     setFieldErrors({})
 
     if (isCompleted) {
-      setBasicInfoBuffer(resourceId, formValues)
+      setBasicInfoBuffer(resourceId, payload)
       setSubmitSuccess(
         'Temporary Basic Info changes saved in memory. Persist them with a full update when ready.',
       )
@@ -69,8 +84,9 @@ function BasicInfoPageContent({
 
     setIsSubmitting(true)
 
-    updateBasicInfo(resourceId, formValues)
-      .then(() => {
+    updateBasicInfo(resourceId, payload)
+      .then((updatedResource) => {
+        onResourceUpdated(updatedResource)
         navigate(resourceOverviewPath(resourceId))
       })
       .catch((error: unknown) => {
@@ -80,7 +96,7 @@ function BasicInfoPageContent({
   }
 
   const handleChange = (nextValue: BasicInfo) => {
-    setFormValues(nextValue)
+    setFormValues(ensureLockedResourceName(nextValue, lockedResourceName))
     setFieldErrors((current) => {
       const nextErrors = { ...current }
       for (const key of Object.keys(nextValue) as (keyof BasicInfo)[]) {
@@ -124,8 +140,15 @@ function BasicInfoPageContent({
 
 export function BasicInfoPage() {
   const resourceId = useResourceId()
-  const { resource, loading, loadError, isNotFound, setResource } =
-    useResource(resourceId)
+  const {
+    resource,
+    loading,
+    loadError,
+    loadErrorTitle,
+    isNotFound,
+    isInvalidId,
+    setResource,
+  } = useResource(resourceId)
   const { getBufferRevision } = useCompletedResourceEditBuffer()
   const bufferRevision = getBufferRevision(resourceId)
 
@@ -142,11 +165,13 @@ export function BasicInfoPage() {
         backLabel="Back to overview"
       />
 
-      <AsyncState
+      <ResourcePageAsyncState
         loading={loading}
-        error={loadError}
+        loadError={loadError}
+        loadErrorTitle={loadErrorTitle}
+        isNotFound={isNotFound}
+        isInvalidId={isInvalidId}
         loadingMessage="Loading Basic Info…"
-        errorTitle={isNotFound ? 'Resource not found' : 'Could not load resource'}
       >
         {resource ? (
           <BasicInfoPageContent
@@ -156,7 +181,7 @@ export function BasicInfoPage() {
             onResourceUpdated={setResource}
           />
         ) : null}
-      </AsyncState>
+      </ResourcePageAsyncState>
     </section>
   )
 }

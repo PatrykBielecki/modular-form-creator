@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { getErrorMessage } from '../api/errors'
 import { deleteResource, getResources } from '../api/resources'
@@ -24,6 +24,13 @@ export function ResourcesListPage() {
   const [deletingResourceId, setDeletingResourceId] = useState<number | null>(
     null,
   )
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const reloadResources = useCallback(() => {
+    setLoading(true)
+    setLoadError(null)
+    setReloadToken((current) => current + 1)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -49,7 +56,7 @@ export function ResourcesListPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [reloadToken])
 
   const handleCreated = (resource: Resource) => {
     setResources((current) => [resource, ...current])
@@ -101,6 +108,13 @@ export function ResourcesListPage() {
         error={loadError}
         loadingMessage="Loading resources…"
         errorTitle="Could not load resources"
+        errorAction={
+          loadError ? (
+            <Button type="button" variant="secondary" onClick={reloadResources}>
+              Try again
+            </Button>
+          ) : null
+        }
       >
         {resources.length === 0 ? (
           <EmptyState>

@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ApiError, getErrorMessage } from '../api/errors'
 import { getResource } from '../api/resources'
 import type { Resource } from '../types/resource'
+import { getResourceLoadErrorTitle } from '../utils/resourceLoadErrors'
+import {
+  INVALID_RESOURCE_ID_MESSAGE,
+  isValidResourceRouteId,
+} from '../utils/resourceRouteId'
 
 interface ResourceFetchError {
   resourceId: string
@@ -10,18 +16,45 @@ interface ResourceFetchError {
 }
 
 export function useResource(resourceId: string) {
+  const location = useLocation()
+  const isRouteIdValid = isValidResourceRouteId(resourceId)
   const [resource, setResource] = useState<Resource | null>(null)
   const [fetchError, setFetchError] = useState<ResourceFetchError | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const invalidIdError: ResourceFetchError | null = isRouteIdValid
+    ? null
+    : {
+        resourceId,
+        message: INVALID_RESOURCE_ID_MESSAGE,
+        status: 400,
+      }
+
+  const activeError =
+    invalidIdError ??
+    (fetchError?.resourceId === resourceId ? fetchError : null)
 
   const isCurrentResource =
-    resource !== null && String(resource.resourceId) === resourceId
-  const loadError =
-    fetchError?.resourceId === resourceId ? fetchError.message : null
-  const isNotFound =
-    fetchError?.resourceId === resourceId && fetchError.status === 404
-  const loading = !isCurrentResource && loadError === null
+    isRouteIdValid &&
+    resource !== null &&
+    String(resource.resourceId) === resourceId
+  const loadError = activeError?.message ?? null
+  const isNotFound = activeError?.status === 404
+  const isInvalidId =
+    activeError?.status === 400 ||
+    activeError?.message === INVALID_RESOURCE_ID_MESSAGE
+  const loadErrorTitle = getResourceLoadErrorTitle(activeError, resourceId)
+  const loading = isRouteIdValid && !isCurrentResource && loadError === null
+
+  const refetch = useCallback(() => {
+    setReloadToken((current) => current + 1)
+  }, [])
 
   useEffect(() => {
+    if (!isRouteIdValid) {
+      return undefined
+    }
+
     let cancelled = false
 
     getResource(resourceId)
@@ -44,13 +77,16 @@ export function useResource(resourceId: string) {
     return () => {
       cancelled = true
     }
-  }, [resourceId])
+  }, [resourceId, location.key, reloadToken, isRouteIdValid])
 
   return {
     resource: isCurrentResource ? resource : null,
     loading,
     loadError,
+    loadErrorTitle,
     isNotFound,
+    isInvalidId,
     setResource,
+    refetch,
   }
 }

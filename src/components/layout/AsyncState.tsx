@@ -16,16 +16,19 @@ export function LoadingState({ message = 'Loading…' }: LoadingStateProps) {
 interface ErrorStateProps {
   message: string
   title?: string
+  action?: ReactNode
 }
 
 export function ErrorState({
   message,
   title = 'Something went wrong',
+  action,
 }: ErrorStateProps) {
   return (
     <StatePanel role="alert">
       <StateTitle>{title}</StateTitle>
       <Message>{message}</Message>
+      {action}
     </StatePanel>
   )
 }
@@ -35,6 +38,7 @@ interface AsyncStateProps {
   error?: string | null
   loadingMessage?: string
   errorTitle?: string
+  errorAction?: ReactNode
   children: ReactNode
 }
 
@@ -43,6 +47,7 @@ export function AsyncState({
   error = null,
   loadingMessage,
   errorTitle,
+  errorAction,
   children,
 }: AsyncStateProps) {
   if (loading) {
@@ -50,7 +55,13 @@ export function AsyncState({
   }
 
   if (error) {
-    return <ErrorState message={error} title={errorTitle} />
+    return (
+      <ErrorState
+        message={error}
+        title={errorTitle}
+        action={errorAction}
+      />
+    )
   }
 
   return children

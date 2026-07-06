@@ -56,6 +56,14 @@ export function PersistCompletedChangesPanel({
       return
     }
 
+    const confirmed = window.confirm(
+      `Persist all temporary changes for "${serverResource.name}" (#${serverResource.resourceId}) to the server? This sends a full update and cannot be undone from here.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
     setIsPersisting(true)
     setError(null)
     setSuccess(null)

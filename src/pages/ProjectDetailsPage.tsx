@@ -8,8 +8,8 @@ import { ProjectDetailsBlockedState } from '../components/forms/ProjectDetailsBl
 import { ProjectDetailsForm } from '../components/forms/ProjectDetailsForm'
 import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
 import { PersistCompletedChangesPanel } from '../components/resources/PersistCompletedChangesPanel'
-import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { ResourcePageAsyncState } from '../components/layout/ResourcePageAsyncState'
 import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
 import { resourceOverviewPath, useResourceId } from '../hooks/useResourceId'
@@ -74,7 +74,8 @@ function ProjectDetailsPageContent({
     setIsSubmitting(true)
 
     updateProjectDetails(resourceId, formValues)
-      .then(() => {
+      .then((updatedResource) => {
+        onResourceUpdated(updatedResource)
         navigate(resourceOverviewPath(resourceId))
       })
       .catch((error: unknown) => {
@@ -128,8 +129,15 @@ function ProjectDetailsPageContent({
 
 export function ProjectDetailsPage() {
   const resourceId = useResourceId()
-  const { resource, loading, loadError, isNotFound, setResource } =
-    useResource(resourceId)
+  const {
+    resource,
+    loading,
+    loadError,
+    loadErrorTitle,
+    isNotFound,
+    isInvalidId,
+    setResource,
+  } = useResource(resourceId)
   const { getBufferRevision } = useCompletedResourceEditBuffer()
   const bufferRevision = getBufferRevision(resourceId)
 
@@ -150,11 +158,13 @@ export function ProjectDetailsPage() {
         backLabel="Back to overview"
       />
 
-      <AsyncState
+      <ResourcePageAsyncState
         loading={loading}
-        error={loadError}
+        loadError={loadError}
+        loadErrorTitle={loadErrorTitle}
+        isNotFound={isNotFound}
+        isInvalidId={isInvalidId}
         loadingMessage="Loading Project Details…"
-        errorTitle={isNotFound ? 'Resource not found' : 'Could not load resource'}
       >
         {resource ? (
           isDraftBlocked ? (
@@ -168,7 +178,7 @@ export function ProjectDetailsPage() {
             />
           )
         ) : null}
-      </AsyncState>
+      </ResourcePageAsyncState>
     </section>
   )
 }

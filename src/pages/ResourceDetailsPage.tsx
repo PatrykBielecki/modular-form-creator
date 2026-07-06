@@ -13,8 +13,8 @@ import {
 } from '../components/resources/ResourceSummarySection'
 import { ModuleCompletionBadge } from '../components/resources/ModuleCompletionBadge'
 import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
-import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { ResourcePageAsyncState } from '../components/layout/ResourcePageAsyncState'
 import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { useResource } from '../hooks/useResource'
 import {
@@ -237,7 +237,14 @@ function ResourceDetailsSummary({
 
 export function ResourceDetailsPage() {
   const resourceId = useResourceId()
-  const { resource, loading, loadError, isNotFound } = useResource(resourceId)
+  const {
+    resource,
+    loading,
+    loadError,
+    loadErrorTitle,
+    isNotFound,
+    isInvalidId,
+  } = useResource(resourceId)
 
   return (
     <section>
@@ -252,11 +259,13 @@ export function ResourceDetailsPage() {
         backLabel="Back to overview"
       />
 
-      <AsyncState
+      <ResourcePageAsyncState
         loading={loading}
-        error={loadError}
+        loadError={loadError}
+        loadErrorTitle={loadErrorTitle}
+        isNotFound={isNotFound}
+        isInvalidId={isInvalidId}
         loadingMessage="Loading resource details…"
-        errorTitle={isNotFound ? 'Resource not found' : 'Could not load resource'}
       >
         {resource ? (
           <ResourceDetailsSummary
@@ -264,7 +273,7 @@ export function ResourceDetailsPage() {
             resourceId={resourceId}
           />
         ) : null}
-      </AsyncState>
+      </ResourcePageAsyncState>
     </section>
   )
 }

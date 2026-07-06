@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import { getErrorMessage } from '../api/errors'
-import { getResource, provisionResource } from '../api/resources'
+import { provisionResource } from '../api/resources'
 import { BufferedChangesNotice } from '../components/resources/BufferedChangesNotice'
 import { ModuleOverviewCard } from '../components/resources/ModuleOverviewCard'
 import { ResourceStatusBadge } from '../components/resources/ResourceStatusBadge'
-import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { ResourcePageAsyncState } from '../components/layout/ResourcePageAsyncState'
 import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
+import { useResource } from '../hooks/useResource'
 import { Button } from '../design-system'
 import {
   resourceBasicInfoPath,
@@ -16,7 +17,6 @@ import {
   resourceProjectDetailsPath,
   useResourceId,
 } from '../hooks/useResourceId'
-import type { Resource } from '../types/resource'
 import { getResourceEditView, hasBufferedChanges } from '../utils/mergeResource'
 import {
   canEditProjectDetails,
@@ -29,56 +29,43 @@ import {
 
 export function ResourceOverviewPage() {
   const resourceId = useResourceId()
-  const { getBuffer } = useCompletedResourceEditBuffer()
-  const [resource, setResource] = useState<Resource | null>(null)
-  const [fetchError, setFetchError] = useState<{
-    resourceId: string
-    message: string
-  } | null>(null)
+  const { getBuffer, clearBuffer } = useCompletedResourceEditBuffer()
+  const {
+    resource,
+    loading,
+    loadError,
+    loadErrorTitle,
+    isNotFound,
+    isInvalidId,
+    setResource,
+  } = useResource(resourceId)
+
   const [provisionError, setProvisionError] = useState<string | null>(null)
+  const [provisionSuccess, setProvisionSuccess] = useState<string | null>(null)
   const [isProvisioning, setIsProvisioning] = useState(false)
-
-  const isCurrentResource =
-    resource !== null && String(resource.resourceId) === resourceId
-  const loadError =
-    fetchError?.resourceId === resourceId ? fetchError.message : null
-  const loading = !isCurrentResource && loadError === null
-
-  useEffect(() => {
-    let cancelled = false
-
-    getResource(resourceId)
-      .then((loadedResource) => {
-        if (!cancelled) {
-          setResource(loadedResource)
-          setFetchError(null)
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setFetchError({
-            resourceId,
-            message: getErrorMessage(error),
-          })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [resourceId])
 
   const handleProvision = () => {
     if (!resource || !isReadyForProvisioning(resource)) {
       return
     }
 
+    const confirmed = window.confirm(
+      `Provision resource "${resource.name}" (#${resource.resourceId})? This will mark it as completed and cannot be undone.`,
+    )
+
+    if (!confirmed) {
+      return
+    }
+
     setIsProvisioning(true)
     setProvisionError(null)
+    setProvisionSuccess(null)
 
     provisionResource(resourceId)
       .then((updatedResource) => {
+        clearBuffer(resourceId)
         setResource(updatedResource)
+        setProvisionSuccess('Resource provisioned successfully.')
       })
       .catch((error: unknown) => {
         setProvisionError(getErrorMessage(error))
@@ -119,11 +106,13 @@ export function ResourceOverviewPage() {
         backLabel="All resources"
       />
 
-      <AsyncState
+      <ResourcePageAsyncState
         loading={loading}
-        error={loadError}
+        loadError={loadError}
+        loadErrorTitle={loadErrorTitle}
+        isNotFound={isNotFound}
+        isInvalidId={isInvalidId}
         loadingMessage="Loading resource…"
-        errorTitle="Could not load resource"
       >
         {resource && viewResource ? (
           <Content>
@@ -200,7 +189,7 @@ export function ResourceOverviewPage() {
               </DetailsLink>
 
               {resource.status === 'draft' ? (
-                <ProvisionSection>
+                <ProvisionSection key={resourceId}>
                   <Button
                     type="button"
                     onClick={handleProvision}
@@ -214,14 +203,25 @@ export function ResourceOverviewPage() {
                     <ProvisionHint>{provisioningBlockedReason}</ProvisionHint>
                   ) : null}
                   {provisionError ? (
-                    <ProvisionError role="alert">{provisionError}</ProvisionError>
+                    <ActionFeedback role="alert" $variant="error">
+                      {provisionError}
+                    </ActionFeedback>
+                  ) : null}
+                  {provisionSuccess ? (
+                    <ActionFeedback role="status" $variant="success">
+                      {provisionSuccess}
+                    </ActionFeedback>
                   ) : null}
                 </ProvisionSection>
-              ) : null}
+              ) : (
+                <ProvisionUnavailableNotice>
+                  Provisioning is unavailable for completed resources.
+                </ProvisionUnavailableNotice>
+              )}
             </ActionsSection>
           </Content>
         ) : null}
-      </AsyncState>
+      </ResourcePageAsyncState>
     </section>
   )
 }
@@ -336,8 +336,15 @@ const ProvisionHint = styled.p`
   font-size: 0.9rem;
 `
 
-const ProvisionError = styled.p`
+const ProvisionUnavailableNotice = styled.p`
   margin: 0;
-  color: ${({ theme }) => theme.colors.warning};
+  color: ${({ theme }) => theme.colors.inkMuted};
+  font-size: 0.95rem;
+`
+
+const ActionFeedback = styled.p<{ $variant: 'error' | 'success' }>`
+  margin: 0;
+  color: ${({ theme, $variant }) =>
+    $variant === 'success' ? theme.colors.success : theme.colors.warning};
   font-size: 0.95rem;
 `

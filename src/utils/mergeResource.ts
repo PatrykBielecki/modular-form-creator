@@ -86,8 +86,11 @@ export function buildFullResourceUpdatePayload(
   const merged = mergeResourceWithBuffer(resource, buffer)
 
   return {
-    name: merged.name,
-    basicInfo: merged.basicInfo,
+    name: resource.name,
+    basicInfo: {
+      ...merged.basicInfo,
+      resourceName: resource.basicInfo.resourceName,
+    },
     projectDetails: merged.projectDetails,
   }
 }
