@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ApiError, getErrorMessage } from '../api/errors'
 import { getResource } from '../api/resources'
@@ -20,7 +20,6 @@ export function useResource(resourceId: string) {
   const isRouteIdValid = isValidResourceRouteId(resourceId)
   const [resource, setResource] = useState<Resource | null>(null)
   const [fetchError, setFetchError] = useState<ResourceFetchError | null>(null)
-  const [reloadToken, setReloadToken] = useState(0)
 
   const invalidIdError: ResourceFetchError | null = isRouteIdValid
     ? null
@@ -45,10 +44,6 @@ export function useResource(resourceId: string) {
     activeError?.message === INVALID_RESOURCE_ID_MESSAGE
   const loadErrorTitle = getResourceLoadErrorTitle(activeError, resourceId)
   const loading = isRouteIdValid && !isCurrentResource && loadError === null
-
-  const refetch = useCallback(() => {
-    setReloadToken((current) => current + 1)
-  }, [])
 
   useEffect(() => {
     if (!isRouteIdValid) {
@@ -77,7 +72,7 @@ export function useResource(resourceId: string) {
     return () => {
       cancelled = true
     }
-  }, [resourceId, location.key, reloadToken, isRouteIdValid])
+  }, [resourceId, location.key, isRouteIdValid])
 
   return {
     resource: isCurrentResource ? resource : null,
@@ -87,6 +82,5 @@ export function useResource(resourceId: string) {
     isNotFound,
     isInvalidId,
     setResource,
-    refetch,
   }
 }

@@ -28,5 +28,3 @@ export const PROJECT_CATEGORY_OPTIONS: SelectOption[] = [
   { value: 'external', label: 'External' },
   { value: 'vendor', label: 'Vendor' },
 ]
-
-export const TEAM_MEMBER_OPTIONS: readonly TeamMemberOption[] = TEAM_MEMBER_VALUES

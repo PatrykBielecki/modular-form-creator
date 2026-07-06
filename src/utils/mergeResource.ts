@@ -95,7 +95,7 @@ export function buildFullResourceUpdatePayload(
   }
 }
 
-/** Resource view used for editing/display when temporary changes may exist. */
+/** Build the merged resource view for editing or read-only display. */
 export function getResourceEditView(
   resource: Resource,
   buffer?: ResourceEditBuffer,

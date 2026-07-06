@@ -49,7 +49,7 @@ function BasicInfoPageContent({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const showBufferedNotice =
-    isCompleted && hasBufferedChanges(resource, getBuffer(resourceId))
+    isCompleted && hasBufferedChanges(resource, buffer)
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

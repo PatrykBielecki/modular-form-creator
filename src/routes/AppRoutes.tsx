@@ -13,7 +13,6 @@ export function AppRoutes() {
       <Route path="/" element={<Navigate to="/resources" replace />} />
       <Route element={<AppLayout />}>
         <Route path="/resources" element={<ResourcesListPage />} />
-        <Route path="/resources/:resourceId" element={<ResourceOverviewPage />} />
         <Route
           path="/resources/:resourceId/details"
           element={<ResourceDetailsPage />}
@@ -26,6 +25,7 @@ export function AppRoutes() {
           path="/resources/:resourceId/project-details"
           element={<ProjectDetailsPage />}
         />
+        <Route path="/resources/:resourceId" element={<ResourceOverviewPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

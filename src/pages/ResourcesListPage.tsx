@@ -6,6 +6,7 @@ import { CreateResourceDrawer } from '../components/resources/CreateResourceDraw
 import { ResourcesList } from '../components/resources/ResourcesList'
 import { AsyncState } from '../components/layout/AsyncState'
 import { PageHeader } from '../components/layout/PageHeader'
+import { useCompletedResourceEditBuffer } from '../hooks/useCompletedResourceEditBuffer'
 import { Button } from '../design-system'
 import type { Resource } from '../types/resource'
 
@@ -16,6 +17,7 @@ const LIST_QUERY = {
 }
 
 export function ResourcesListPage() {
+  const { clearBuffer } = useCompletedResourceEditBuffer()
   const [resources, setResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -77,6 +79,7 @@ export function ResourcesListPage() {
 
     try {
       await deleteResource(resource.resourceId)
+      clearBuffer(String(resource.resourceId))
       setResources((current) =>
         current.filter((item) => item.resourceId !== resource.resourceId),
       )

@@ -4,9 +4,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { BasicInfo, ProjectDetails, Resource } from '../types/resource'
+import type { BasicInfo, ProjectDetails } from '../types/resource'
 import type { ResourceEditBuffer } from '../types/resourceEditBuffer'
-import { hasBufferedChanges as hasBufferedChangesForResource } from '../utils/mergeResource'
 import { CompletedResourceEditBufferContext } from './CompletedResourceEditBufferContext'
 
 export function CompletedResourceEditBufferProvider({
@@ -32,12 +31,6 @@ export function CompletedResourceEditBufferProvider({
   const getBufferRevision = useCallback(
     (resourceId: string) => revisions[resourceId] ?? 0,
     [revisions],
-  )
-
-  const hasBufferedChanges = useCallback(
-    (resource: Resource) =>
-      hasBufferedChangesForResource(resource, buffers[String(resource.resourceId)]),
-    [buffers],
   )
 
   const setBasicInfoBuffer = useCallback(
@@ -82,7 +75,6 @@ export function CompletedResourceEditBufferProvider({
     () => ({
       getBuffer,
       getBufferRevision,
-      hasBufferedChanges,
       setBasicInfoBuffer,
       setProjectDetailsBuffer,
       clearBuffer,
@@ -90,7 +82,6 @@ export function CompletedResourceEditBufferProvider({
     [
       getBuffer,
       getBufferRevision,
-      hasBufferedChanges,
       setBasicInfoBuffer,
       setProjectDetailsBuffer,
       clearBuffer,

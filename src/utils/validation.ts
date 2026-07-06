@@ -186,14 +186,6 @@ export function validateProjectDetails(
   return errors
 }
 
-export function isBasicInfoValid(basicInfo: BasicInfo): boolean {
-  return Object.keys(validateBasicInfo(basicInfo)).length === 0
-}
-
-export function isProjectDetailsValid(projectDetails: ProjectDetails): boolean {
-  return Object.keys(validateProjectDetails(projectDetails)).length === 0
-}
-
 export function hasValidationErrors<T extends Record<string, string>>(
   errors: Partial<T>,
 ): boolean {
